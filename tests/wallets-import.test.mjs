@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {validateWallet,resolveWallet} from '../src/wallets.mjs';
+import {importFlightSheet} from '../src/flight-sheet.mjs';
+import {command,Manager} from '../src/miners.mjs';
+const sheet={name:'Pearl Cryptex new',items:[{coin:'PEARL',pool_ssl:false,wal_id:11067194,miner:'srbminer',miner_config:{url:'prl-eu.kryptex.network:7048',algo:'pearlhash',pass:'x',worker:'%WORKER_NAME%',template:'%WAL%'}}]};
+const wallet={id:'pearl-wallet',name:'Pearl',coin:'PRL',address:'wallet-address',externalId:'11067194'};
+test('Pearl JSON import: helyi wal_id feloldas, worker, TLS false, SRB GPU adapter',()=>{const {profile:p}=importFlightSheet({sheet,worker:'rig-01',devices:'0,1'},[wallet]);assert.equal(p.walletId,wallet.id);assert.equal(p.wallet,wallet.address);assert.equal(p.worker,'rig-01');assert.equal(p.tls,false);assert.equal(p.engine,'srbminer');const c=command(p);assert(c.args.includes('--disable-cpu'));assert(c.args.includes('--gpu-id'));assert(c.args.includes('pearlhash'));assert(!c.args.includes('--api-enable'));});
+test('wallet hianyat nem potolja a kulso szamazonosito; valtozok nem maradhatnak a profilban',()=>{assert.throws(()=>importFlightSheet({sheet,worker:'rig-01',devices:'0'}),/wallet/i);assert.throws(()=>importFlightSheet({sheet,worker:'%WORKER_NAME%',devices:'0',wallet:'address'}));assert.throws(()=>validateWallet({...wallet,id:undefined}));});
+test('cimtar frissitett cime kovetkezo inditaskor es sablon feloldas',()=>{const p={walletId:wallet.id,walletTemplate:'%WAL%/%WORKER_NAME%',worker:'rig-01',wallet:'old'};assert.equal(resolveWallet(p,[{...wallet,address:'new-address'}]).wallet,'new-address/rig-01');assert.throws(()=>resolveWallet(p,[]));});

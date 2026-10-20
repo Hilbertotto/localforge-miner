@@ -1,0 +1,12 @@
+data/
+node_modules/
+__pycache__/
+*.pyc
+xmrig-*.png
+.local/
+
+# Never publish screenshots, credentials or generated releases.
+*.png
+dist/
+*.log
+release.json

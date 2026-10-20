@@ -1,0 +1,19 @@
+{
+  "name": "Pearl Cryptex new",
+  "isFavorite": false,
+  "items": [{
+    "coin": "PEARL",
+    "pool_ssl": false,
+    "wal_id": 11067194,
+    "dpool_ssl": false,
+    "miner": "srbminer",
+    "miner_config": {
+      "url": "prl-eu.kryptex.network:7048",
+      "algo": "pearlhash",
+      "pass": "x",
+      "worker": "%WORKER_NAME%",
+      "template": "%WAL%"
+    },
+    "pool_geo": []
+  }]
+}

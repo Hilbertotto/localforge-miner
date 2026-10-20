@@ -1,0 +1,23 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import {ThermalWatchdog,defaults,validateWatchdog} from '../src/watchdog.mjs';
+import {cpuTemperature} from '../src/temperature.mjs';
+async function fixture(t,action='stop_cpu'){
+ const dir=await mkdtemp(path.join(os.tmpdir(),'localforge-thermal-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+ let temp=60,now=0,reboots=0;const stopped=[],started=[];
+ const cpu={id:'cpu',name:'CPU',engine:'xmrig'},gpu={id:'gpu',name:'GPU',engine:'srbminer'};
+ const manager={jobs:new Map([['cpu',{profile:cpu,child:{}}],['gpu',{profile:gpu,child:{}}]]),async stop(id){stopped.push(id);this.jobs.get(id).child=null;},async stopAll(){for(const [id,j]of this.jobs)if(j.child)await this.stop(id);},async start(p){started.push(p.id);this.jobs.set(p.id,{profile:p,child:{}});}};
+ const opts={dataDir:dir,manager,readTemperature:async()=>({available:temp!==null,celsius:temp}),reboot:async()=>{reboots++;},getProfiles:()=>[cpu,gpu],now:()=>now};
+ const w=new ThermalWatchdog(opts);await w.load();await w.configure({...defaults,enabled:true,action,tripSeconds:5,coolSeconds:10});
+ return {w,opts,manager,stopped,started,setTemp:v=>temp=v,setTime:v=>now=v,reboots:()=>reboots};
+}
+test('hovedelem: rovid tullepes nem allit le; tartos igen; csak CPU; uj inditas tiltva',async t=>{const f=await fixture(t);f.setTemp(85);await f.w.tick();f.setTime(4000);await f.w.tick();assert.deepEqual(f.stopped,[]);f.setTime(5000);await f.w.tick();assert.deepEqual(f.stopped,['cpu']);assert.equal(f.manager.jobs.get('gpu').child!==null,true);await assert.rejects(f.w.guardStart({engine:'xmrig'}));f.setTemp(69);await f.w.rearm();await f.w.guardStart({engine:'xmrig'});assert.equal(f.w.latched,false);});
+test('lehules: hiszterezis es folyamatos varakozas; GPU marad',async t=>{const f=await fixture(t,'cooldown');f.setTemp(90);await f.w.tick();f.setTime(5000);await f.w.tick();f.setTemp(69);f.setTime(6000);await f.w.tick();f.setTime(14000);await f.w.tick();assert.deepEqual(f.started,[]);f.setTemp(72);await f.w.tick();f.setTemp(69);f.setTime(16000);await f.w.tick();f.setTime(26000);await f.w.tick();assert.deepEqual(f.started,['cpu']);assert.equal(f.w.latched,false);assert.deepEqual(f.stopped,['cpu']);});
+test('kezi megszakitas torli az automatikus visszainditast',async t=>{const f=await fixture(t,'cooldown');f.setTemp(90);await f.w.tick();f.setTime(5000);await f.w.tick();f.w.cancelResume('cpu');f.setTemp(50);f.setTime(90000);await f.w.tick();assert.deepEqual(f.started,[]);assert.equal(f.w.latched,true);});
+test('reboot: osszes miner leall, egyszeri reboot es tartos tiltas szolgaltatas restart utan',async t=>{const f=await fixture(t,'reboot');f.setTemp(90);await f.w.tick();f.setTime(5000);await f.w.tick();await f.w.tick();assert.equal(f.reboots(),1);assert.deepEqual(f.stopped,['cpu','gpu']);const restarted=new ThermalWatchdog(f.opts);await restarted.load();await restarted.tick();assert.equal(f.reboots(),1);assert.equal(restarted.latched,true);});
+test('szenzorhiba CPU-leallitast okoz, nem rebootot; uresjaratban nincs reboot',async t=>{const f=await fixture(t,'reboot');f.setTemp(null);await f.w.tick();assert.deepEqual(f.stopped,['cpu']);assert.equal(f.reboots(),0);assert.equal(f.manager.jobs.get('gpu').child!==null,true);});
+test('watchdog bekapcsolasa meres nelkul tilos; config ertekellenorzes',async t=>{const f=await fixture(t);f.setTemp(null);await assert.rejects(f.w.configure({...defaults,enabled:true}));assert.throws(()=>validateWatchdog({...defaults,resumeBelow:84}));assert.throws(()=>validateWatchdog({...defaults,action:'shell-command'}));});
+test('csak CPU hwmon mereseket vesz figyelembe, max ertek, hibas szenzor kihagyva',async t=>{const dir=await mkdtemp(path.join(os.tmpdir(),'localforge-hwmon-'));t.after(()=>rm(dir,{recursive:true,force:true}));for(const [entry,name,values]of [['h0','nvme',{temp1_input:'99000'}],['h1','k10temp',{temp1_input:'80500',temp1_label:'Tctl',temp2_input:'78500',temp2_label:'Tdie',temp3_input:'999999',temp4_input:'0',temp4_fault:'1'}]]){const folder=path.join(dir,entry);await mkdir(folder);await writeFile(path.join(folder,'name'),name);for(const [file,value]of Object.entries(values))await writeFile(path.join(folder,file),value);}const r=await cpuTemperature({hwmon:dir,thermal:path.join(dir,'missing')});assert.equal(r.celsius,80.5);assert.equal(r.sensors.length,2);assert.match(r.source,/Tctl/);const missing=await cpuTemperature({hwmon:path.join(dir,'missing'),thermal:path.join(dir,'missing')});assert.equal(missing.available,false);assert.equal(missing.celsius,null);});

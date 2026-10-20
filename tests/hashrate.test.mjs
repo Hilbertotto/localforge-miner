@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {normalizeCpu,readCpu} from '../src/hashrate.mjs';
+import {command} from '../src/miners.mjs';
+const summary={id:'our-miner',version:'6.26.0',algo:'rx/0',hashrate:{total:[250,240,null]},results:{shares_good:3,shares_total:4}};
+const backends=[{type:'cpu',threads:[{affinity:2,hashrate:[120,115,null]},{affinity:-1,hashrate:[130,125,null]}]}];
+test('valos API-alak: szalankenti ertek, affinitas es osszesitett atlagok',()=>{const r=normalizeCpu(summary,backends);assert.equal(r.total,250);assert.equal(r.average60,240);assert.equal(r.average15m,null);assert.deepEqual(r.threads.map(t=>[t.index,t.affinity,t.hashrate]),[[0,2,120],[1,null,130]]);assert.equal(r.accepted,3);assert.equal(r.submitted,4);});
+test('bemelegedes es hianyzo adat nem valik hamis nulla meresse',()=>{const r=normalizeCpu({hashrate:{total:[null,0,NaN]}},[{type:'cpu',threads:[{affinity:0,hashrate:[null,0,-1]}]}]);assert.equal(r.total,null);assert.equal(r.average60,0);assert.equal(r.threads[0].hashrate,null);assert.equal(r.threads[0].average60,0);assert.equal(r.threads[0].average15m,null);});
+test('API token es peldanyazonosito ellenorzese; port csak loopback',async()=>{const fetcher=async(url,opts)=>{assert(url.startsWith('http://127.0.0.1:18088/2/'));assert.equal(opts.headers.Authorization,'Bearer secret');return {ok:true,json:async()=>url.endsWith('summary')?summary:backends};};assert.equal((await readCpu({id:'our-miner',token:'secret'},fetcher)).available,true);assert.equal((await readCpu({id:'other',token:'secret'},fetcher)).available,false);const args=command({engine:'xmrig',threads:12},{id:'id',token:'secret'}).args;assert(args.includes('--http-access-token'));assert(!args.includes('--http-no-restricted'));assert(!args.includes('--no-opencl'));assert(!args.includes('--no-cuda'));});
+test('API hiba kifejezett hianyzo adatot ad',async()=>{const r=await readCpu({id:'id',token:'secret'},async()=>{throw Error('connection refused');});assert.equal(r.available,false);assert.equal(r.total,null);assert.deepEqual(r.threads,[]);});

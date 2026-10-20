@@ -1,0 +1,18 @@
+{
+  "files": [
+    ".gitignore", ".gitattributes", "package.json", "server.mjs", "README.md", "API.md", "openapi.json",
+    "UBUNTU-TELEPITES.md", "TELEPITES-GITHUB.md", "RELEASE-NOTES.md", "release-manifest.json",
+    "setup-miner.bat", "setup-miner.ps1", "bootstrap-ubuntu.sh", "setup-ubuntu.sh", "install-web.sh",
+    "install-from-windows.bat", "install-from-windows.ps1", "install-web.bat", "web-remote.ps1",
+    "configure-connection.bat", "configure-connection.ps1", "connection-tools.ps1", "open-web.bat",
+    "install-lan.bat", "install-lan.ps1", "web-login.bat", "web-login.ps1"
+  ],
+  "trees": {
+    "src": [".mjs"],
+    "public": [".js", ".css", ".html"],
+    "scripts": [".py", ".sh", ".mjs"],
+    "tests": [".py", ".mjs", ".ps1"],
+    "examples": [".json"],
+    ".github/workflows": [".yml"]
+  }
+}
