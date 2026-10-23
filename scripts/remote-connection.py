@@ -6,6 +6,8 @@ import re
 import select
 import shlex
 import socketserver
+import socket
+import threading
 import sys
 import tarfile
 import tempfile
@@ -81,7 +83,7 @@ def install(client, config, base=False, update_only=False, ui_only=False):
     # A helyi forras helyet a Python unicode-os scriptutvonalabol szarmaztatjuk,
     # nem egy PowerShell csovon kapott, potencialisan serult karaktersorbol.
     root = Path(__file__).resolve().parents[1]
-    names = ['public'] if ui_only else ['setup-ubuntu.sh'] if base else ['server.mjs', 'package.json', 'src', 'public', 'scripts', 'install-web.sh']
+    names = ['public'] if ui_only else ['setup-ubuntu.sh'] if base else ['server.mjs', 'package.json', 'src', 'public', 'scripts', 'worker', 'install-web.sh']
     with tempfile.TemporaryDirectory() as folder:
         archive = Path(folder) / 'app.tar.gz'
         with tarfile.open(archive, 'w:gz') as tar:
@@ -100,7 +102,7 @@ def install(client, config, base=False, update_only=False, ui_only=False):
         run_remote(client, cmd, config['sudoPassword'], secrets=(config['password'], config['sudoPassword']))
 
 
-def tunnel(client):
+def tunnel(client, open_browser=True):
     transport = client.get_transport()
 
     class Handler(socketserver.BaseRequestHandler):
@@ -127,7 +129,8 @@ def tunnel(client):
     with Server(('127.0.0.1', 8080), Handler) as server:
         server.timeout = 1
         print('Webfelulet: http://127.0.0.1:8080 — ezt az ablakot hagyd nyitva. Ctrl+C: bezaras.', flush=True)
-        webbrowser.open('http://127.0.0.1:8080')
+        if open_browser:
+            webbrowser.open('http://127.0.0.1:8080')
         while transport.is_active():
             server.handle_request()
         raise RuntimeError('Az SSH kapcsolat megszakadt')
@@ -222,16 +225,78 @@ def install_lan(client, config):
     verify_lan(config)
 
 
+def central_tunnel(client):
+    """Ubuntu loopback:18090 -> this Windows host's loopback:8090 only."""
+    transport = client.get_transport()
+    transport.request_port_forward('127.0.0.1', 18090)
+
+    def relay(channel):
+        try:
+            with channel, socket.create_connection(('127.0.0.1', 8090), timeout=10) as local:
+                while True:
+                    ready, _, _ = select.select([local, channel], [], [], 30)
+                    for source in ready:
+                        data = source.recv(65536)
+                        if not data:
+                            return
+                        (channel if source is local else local).sendall(data)
+        except (OSError, EOFError):
+            pass
+
+    print('Kozponti alagut: Ubuntu 127.0.0.1:18090 -> Windows 127.0.0.1:8090', flush=True)
+    try:
+        while transport.is_active():
+            channel = transport.accept(5)
+            if channel is not None:
+                threading.Thread(target=relay, args=(channel,), daemon=True).start()
+    finally:
+        if transport.is_active():
+            transport.cancel_port_forward('127.0.0.1', 18090)
+    raise RuntimeError('A kozponti alagut kapcsolata megszakadt')
+
+
+def prepare_central(client, config):
+    script = """import json,os,pwd,tempfile,urllib.request
+from pathlib import Path
+target=Path('/var/lib/localforge/central-server-default.json')
+account=pwd.getpwnam('localforge')
+with tempfile.NamedTemporaryFile(mode='w',dir=target.parent,delete=False) as file:
+ json.dump({'server':'http://127.0.0.1:18090'},file)
+ temp=file.name
+os.chmod(temp,0o600)
+os.chown(temp,account.pw_uid,account.pw_gid)
+os.replace(temp,target)
+with urllib.request.urlopen('http://127.0.0.1:18090/api/auth-config',timeout=10) as response:
+ print('CENTRAL_HTTP',response.status)
+with urllib.request.urlopen('http://127.0.0.1:8080/api/central-connection',timeout=10) as response:
+ data=json.load(response)
+ print('CONNECTION',json.dumps({k:data.get(k) for k in ['configured','server','name']}))
+with urllib.request.urlopen('http://127.0.0.1:8080/',timeout=10) as response:
+ print('SETUP_FORM', 'id="central-form"' in response.read().decode())
+with urllib.request.urlopen('http://127.0.0.1:8080/api/status',timeout=10) as response:
+ data=json.load(response)
+ print('JOBS',json.dumps([{'id':j['id'],'state':j['state']} for j in data['jobs']]))
+ print('AUTOSTART_PENDING',json.dumps(data['autostart']['pending']))
+ print('WATCHDOG',data['watchdog']['config']['enabled'],data['watchdog']['latched'])
+"""
+    run_remote(client, "sudo -S -p '' python3 -c "+shlex.quote(script), config['sudoPassword'], secrets=(config['password'],config['sudoPassword']))
+
+
 def main():
     mode = sys.argv[1]
-    if mode not in ('install', 'open', 'base', 'diagnose', 'diagnose-lan', 'install-lan', 'verify-lan', 'update-app', 'verify-history', 'update-ui'):
+    if mode not in ('install', 'open', 'base', 'diagnose', 'diagnose-lan', 'install-lan', 'verify-lan', 'update-app', 'verify-history', 'update-ui', 'central-tunnel', 'prepare-central', 'web-tunnel'):
         raise ValueError('Ismeretlen uzemmod')
     config = json.loads(sys.stdin.buffer.readline().decode('utf-8-sig'))
     if any(not isinstance(config.get(k), str) or any(c in config[k] for c in '\r\n\x00') for k in ('password', 'sudoPassword')):
         raise ValueError('Hibas jelszoformatum')
     client = connect(config)
     try:
-        if mode == 'install-lan':
+        if mode == 'central-tunnel':
+            config['sudoPassword'] = None
+            central_tunnel(client)
+        elif mode == 'prepare-central':
+            prepare_central(client, config)
+        elif mode == 'install-lan':
             install_lan(client, config)
         elif mode == 'verify-history':
             verify_lan(config, check_history=True)
@@ -241,10 +306,10 @@ def main():
             diagnose_lan(client, config)
         elif mode == 'diagnose':
             diagnose(client, config)
-        elif mode == 'open':
+        elif mode in ('open', 'web-tunnel'):
             # A sudo jelszo az alaguthoz nem szukseges es nem jut el a szerverhez.
             config['sudoPassword'] = None
-            tunnel(client)
+            tunnel(client, open_browser=mode == 'open')
         else:
             install(client, config, base=mode == 'base', update_only=mode == 'update-app', ui_only=mode == 'update-ui')
     finally:

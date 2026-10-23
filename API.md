@@ -1,6 +1,6 @@
 # LocalForge Agent API v1
 
-A bányászgép most **agentként** működhet: a helyi webfelület és a központi kezelő ugyanazt a vezérlést használja. Ez a változtatás az agent API-ját készíti el; a több gépet összefogó központi szerver még nincs megvalósítva.
+A bányászgép **agentként** működhet: a helyi webfelület és a központi kezelő ugyanazt a vezérlést használja. A külön futtatható központi szerver indítása és korlátai: [central/README.md](central/README.md).
 
 ## Elérés és jogosultság
 

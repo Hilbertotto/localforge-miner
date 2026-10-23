@@ -66,6 +66,35 @@ def fan_control(gpu, speed=None, library=None):
         lib.nvmlShutdown()
 
 
+def offset_control(gpu, domain, value, library=None):
+    if not isinstance(value, int) or not (-1000 <= value <= 1000 if domain == 'core-offset' else -2000 <= value <= 6000):
+        raise ValueError('Offset a megengedett tartomanyon kivul')
+    lib = library if library is not None else ctypes.CDLL('libnvidia-ml.so.1')
+    prefix = 'Gpc' if domain == 'core-offset' else 'Mem'
+    signatures = {'nvmlInit_v2': [], 'nvmlShutdown': [],
+        'nvmlDeviceGetHandleByUUID': [ctypes.c_char_p, ctypes.POINTER(ctypes.c_void_p)],
+        'nvmlDeviceGet'+prefix+'ClkMinMaxVfOffset': [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)],
+        'nvmlDeviceGet'+prefix+'ClkVfOffset': [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)],
+        'nvmlDeviceSet'+prefix+'ClkVfOffset': [ctypes.c_void_p, ctypes.c_int]}
+    for name, args in signatures.items():
+        try: fn = getattr(lib, name)
+        except AttributeError: raise ValueError('A driver nem tamogatja az NVML offset vezerlest') from None
+        fn.argtypes, fn.restype = args, ctypes.c_int
+    def check(code):
+        if code: raise ValueError(f'NVML offset hiba: {code}')
+    check(lib.nvmlInit_v2())
+    try:
+        h, lo, hi, actual = ctypes.c_void_p(), ctypes.c_int(), ctypes.c_int(), ctypes.c_int()
+        check(lib.nvmlDeviceGetHandleByUUID(gpu.encode('ascii'), ctypes.byref(h)))
+        check(getattr(lib, 'nvmlDeviceGet'+prefix+'ClkMinMaxVfOffset')(h, ctypes.byref(lo), ctypes.byref(hi)))
+        if not lo.value <= value <= hi.value: raise ValueError(f'Driver offset tartomany: {lo.value}..{hi.value} MHz')
+        check(getattr(lib, 'nvmlDeviceSet'+prefix+'ClkVfOffset')(h, value))
+        check(getattr(lib, 'nvmlDeviceGet'+prefix+'ClkVfOffset')(h, ctypes.byref(actual)))
+        if actual.value != value: raise ValueError('Az offset visszaellenorzese nem egyezik')
+        return f'{gpu}: {domain} = {actual.value} MHz, visszaellenorizve.'
+    finally: lib.nvmlShutdown()
+
+
 def run(args):
     result = subprocess.run(['/usr/bin/nvidia-smi', *args], text=True,
                             capture_output=True, timeout=8,
@@ -81,8 +110,12 @@ def main(args):
     action, gpu = args[:2]
     if not re.fullmatch(r'GPU-[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}', gpu):
         raise ValueError('Hibas GPU UUID')
-    if action not in ('power', 'core', 'memory', 'reset', 'fan', 'fan-auto'):
+    if action not in ('power', 'core', 'memory', 'reset', 'fan', 'fan-auto', 'core-offset', 'memory-offset'):
         raise ValueError('Ismeretlen muvelet')
+    if action in ('core-offset', 'memory-offset'):
+        if len(args) != 3 or not re.fullmatch(r'-?\d{1,4}', args[2]): raise ValueError('Egesz offset szukseges')
+        print(offset_control(gpu, action, int(args[2])))
+        return
     if action in ('fan', 'fan-auto'):
         if action == 'fan-auto':
             if len(args) != 2:
@@ -104,6 +137,9 @@ def main(args):
                 print(run(['-i', gpu, *option]))
             except ValueError as exc:
                 errors.append(str(exc))
+        for domain in ('core-offset', 'memory-offset'):
+            try: print(offset_control(gpu, domain, 0))
+            except ValueError as exc: errors.append(str(exc))
         if errors:
             raise ValueError('Reszleges visszaallitas: ' + '; '.join(errors))
         return

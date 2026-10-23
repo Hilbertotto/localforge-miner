@@ -18,12 +18,16 @@ install -d -m 755 /opt/localforge /opt/localforge/public /opt/localforge/src /op
 install -d -o localforge -g localforge -m 700 /var/lib/localforge
 install -m 644 server.mjs package.json /opt/localforge/
 install -m 644 src/*.mjs /opt/localforge/src/
+install -d -m 755 /opt/localforge/worker
+install -m 644 worker/connector.mjs /opt/localforge/worker/
 install -m 644 scripts/api-key.mjs /opt/localforge/scripts/
+install -m 644 scripts/read-oc.py scripts/nvidia-offsets.py /opt/localforge/scripts/
 install -m 644 public/* /opt/localforge/public/
 # Az app es a privilegizalt helper kodja csak root altal irhato.
 chown -R root:root /opt/localforge
 if [[ -e /opt/localforge/data && ! -L /opt/localforge/data ]]; then echo '/opt/localforge/data mar letezik es nem symlink; kezi ellenorzes kell.'; exit 1; fi
 ln -sfn /var/lib/localforge /opt/localforge/data
+sed -i 's/\r$//' scripts/localforge-oc.py
 install -o root -g root -m 755 scripts/localforge-oc.py /usr/local/sbin/localforge-oc
 install -o root -g root -m 755 scripts/localforge-reboot.py /usr/local/sbin/localforge-reboot
 install -o root -g root -m 755 scripts/localforge-power.py /usr/local/sbin/localforge-power

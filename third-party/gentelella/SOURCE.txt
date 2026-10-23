@@ -1,0 +1,7 @@
+Gentelella v4, ColorlibHQ/gentelella
+Source: https://github.com/ColorlibHQ/gentelella
+Commit: 02936f9003baa8473aa39dadd4ce23b679961d53
+Retrieved: 2026-10-23
+License: MIT (LICENSE.txt); notice is embedded in public/style.css.
+SCSS compiled with Dart Sass; LocalForge layout and handlers are maintained separately.
+Runtime uses local CSS only; no upstream demo JavaScript or service worker is loaded.

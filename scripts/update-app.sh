@@ -11,9 +11,14 @@ systemctl stop localforge.service
 trap 'systemctl start localforge.service' EXIT
 install -d -m 755 /opt/localforge/scripts
 install -o root -g root -m 644 src/*.mjs /opt/localforge/src/
+install -d -m 755 /opt/localforge/worker
+install -o root -g root -m 644 worker/connector.mjs /opt/localforge/worker/
 install -o root -g root -m 644 public/* /opt/localforge/public/
 install -o root -g root -m 644 scripts/api-key.mjs /opt/localforge/scripts/
+install -o root -g root -m 644 scripts/read-oc.py scripts/nvidia-offsets.py /opt/localforge/scripts/
 install -o root -g root -m 644 server.mjs package.json /opt/localforge/
+sed -i 's/\r$//' scripts/localforge-oc.py
+install -o root -g root -m 755 scripts/localforge-oc.py /usr/local/sbin/localforge-oc
 systemctl start localforge.service
 trap - EXIT
 systemctl is-active localforge.service

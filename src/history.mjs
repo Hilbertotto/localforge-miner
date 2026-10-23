@@ -36,8 +36,8 @@ export class TelemetryHistory{
  start(){if(this.timer||this.closed)return;void this.sample();this.timer=setInterval(()=>void this.sample(),this.intervalMs);this.timer.unref();}
  async latest(){if(!this.current||this.now()-this.current.at>=this.intervalMs)await this.sample();if(!this.current)throw Error(this.error||'Még nincs telemetria.');return this.current;}
  query(range){
-  if(!['1h','1d'].includes(range))throw Error('Időtáv: 1h vagy 1d.');
-  const end=this.now(),duration=range==='1h'?3600000:DAY,start=end-duration,stepMs=range==='1h'?5000:60000;
+  if(!['1h','3h','6h','12h','1d'].includes(range))throw Error('Időtáv: 1h, 3h, 6h, 12h vagy 1d.');
+  const end=this.now(),duration=({'1h':1,'3h':3,'6h':6,'12h':12,'1d':24}[range])*3600000,start=end-duration,stepMs=range==='1h'?5000:60000;
   const records=this.records.filter(r=>r.at>=start&&r.at<=end),buckets=[];
   for(const r of records){const key=Math.floor(r.at/stepMs),last=buckets.at(-1);if(last?.key===key)last.values.push(r);else buckets.push({key,values:[r]});}
   // One day uses minute averages, with nulls and algorithm changes kept as gaps.

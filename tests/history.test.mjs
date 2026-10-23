@@ -36,5 +36,25 @@ test('history API is available locally and with read scope; invalid time range i
  const base=`http://127.0.0.1:${app.server.address().port}`,key=await app.agentApi.issue('read',['read']);
  assert.equal((await fetch(base+'/api/v1/history?range=1d')).status,401);
  const response=await fetch(base+'/api/v1/history?range=1d',{headers:{Authorization:`Bearer ${key.token}`}});assert.equal(response.status,200);assert.equal((await response.json()).range,'1d');
- const hour=await(await fetch(base+'/api/history?range=1h')).json();assert.equal(hour.records[0].temperatures.gpu,60);assert.equal((await fetch(base+'/api/history?range=7d')).status,400);assert.equal((await fetch(base+'/api/history?range=1h&range=1d')).status,400);
+ for(const [range,hours] of [['3h',3],['6h',6],['12h',12]]){const result=await(await fetch(base+'/api/history?range='+range)).json();assert.equal(result.range,range);assert.equal(result.end-result.start,hours*3600000);assert.equal(result.stepMs,60000);}const hour=await(await fetch(base+'/api/history?range=1h')).json();assert.equal(hour.records[0].temperatures.gpu,60);assert.equal((await fetch(base+'/api/history?range=7d')).status,400);assert.equal((await fetch(base+'/api/history?range=1h&range=1d')).status,400);
+});
+
+test('successful OC forces fresh telemetry before returning, bypassing the five-second status cache',async t=>{
+ const dataDir=await fixture(t),uuid='GPU-11111111-1111-1111-1111-111111111111';let limit=140;
+ const manager={jobs:new Map(),status:()=>[],hashrates:async()=>({})};
+ const app=await createApp({dataDir,manager,autoRestore:false,watchdogTimer:false,historyTimer:false,telemetry:async()=>({gpus:[{uuid,limit,power:limit,temp:65}]}),ocAction:async command=>{limit=command.value;return 'OK';}});
+ await new Promise(r=>app.server.listen(0,'127.0.0.1',r));t.after(async()=>{await app.prepareShutdown();await new Promise(r=>app.server.close(r));});
+ const base=`http://127.0.0.1:${app.server.address().port}`;
+ assert.equal((await(await fetch(base+'/api/status')).json()).gpus[0].limit,140);
+ const {token}=await(await fetch(base+'/api/session')).json();
+ const response=await fetch(base+'/api/oc',{method:'POST',headers:{'Content-Type':'application/json','X-Local-Token':token},body:JSON.stringify({uuid,action:'power',value:130})});assert.equal(response.status,200);
+ assert.equal((await(await fetch(base+'/api/status')).json()).gpus[0].limit,130);
+});
+
+test('status separates saved clock target from actual measured clock',async t=>{
+ const dataDir=await fixture(t),uuid='GPU-11111111-1111-1111-1111-111111111111',manager={jobs:new Map(),status:()=>[],hashrates:async()=>({})};
+ const app=await createApp({dataDir,manager,autoRestore:false,watchdogTimer:false,historyTimer:false,telemetry:async()=>({gpus:[{uuid,core:1440,memoryClock:810}]}),ocAction:async()=> 'Driver accepted'});
+ await new Promise(r=>app.server.listen(0,'127.0.0.1',r));t.after(async()=>{await app.prepareShutdown();await new Promise(r=>app.server.close(r));});const base=`http://127.0.0.1:${app.server.address().port}`,{token}=await(await fetch(base+'/api/session')).json();
+ const response=await fetch(base+'/api/oc',{method:'POST',headers:{'Content-Type':'application/json','X-Local-Token':token},body:JSON.stringify({uuid,action:'core',value:1500})});assert.equal(response.status,200);
+ const status=await(await fetch(base+'/api/status')).json();assert.equal(status.gpus[0].core,1440);assert.equal(status.ocSettings.find(c=>c.action==='core').value,1500);
 });

@@ -6,13 +6,13 @@ import {GpuLogStats} from './gpu-hashrate.mjs';
 import {mkdir} from 'node:fs/promises';
 import path from 'node:path';
 export const engines={xmrig:{label:'XMRig · CPU',kind:'cpu',algorithms:['rx/0','ghostrider','cn-heavy/xhv']},lolminer:{label:'lolMiner · GPU',kind:'gpu',algorithms:['ETCHASH','AUTOLYKOS2','BEAM-III']},srbminer:{label:'SRBMiner · GPU',kind:'gpu',algorithms:['pearlhash','autolykos2','kawpow','etchash']}};
-export function validateProfile(p){
+export function validateProfile(p,{maxThreads=os.cpus().length}={}){
  const str=(x,max)=>typeof x==='string'&&x.length<=max&&!/[\x00-\x1f]/.test(x);
  if(!p||!str(p.id,64)||!/^[-\w]{1,64}$/.test(p.id)||!str(p.name,80)||!p.name.trim()||!Object.hasOwn(engines,p.engine))throw Error('Hibás profilnév vagy bányászprogram.');
  if(!engines[p.engine].algorithms.includes(p.algorithm))throw Error('Nem támogatott algoritmus.');
  if(!str(p.pool,256)||!/^([a-zA-Z0-9.-]+|\[[a-fA-F0-9:]+\]):[0-9]{1,5}$/.test(p.pool)||Number(p.pool.split(':').at(-1))<1||Number(p.pool.split(':').at(-1))>65535)throw Error('Pool formátum: host:port.');
  if(!str(p.wallet,512)||!p.wallet.trim()||p.wallet.startsWith('-')||!str(p.password,128)||p.password.startsWith('-')||!/^[-\w.]{1,64}$/.test(p.worker)||p.worker.startsWith('-')||typeof p.tls!=='boolean')throw Error('Hibás wallet, pooljelszó vagy worker.');
- if(p.engine==='xmrig'&&(!Number.isInteger(p.threads)||p.threads<1||p.threads>os.cpus().length))throw Error(`CPU szálak: 1–${os.cpus().length}.`);
+ if(p.engine==='xmrig'&&(!Number.isInteger(p.threads)||p.threads<1||p.threads>maxThreads))throw Error(`CPU szálak: 1–${maxThreads}.`);
  if(/%[A-Z_]+%/.test(p.wallet))throw Error('A walletben fel nem oldott sablonváltozó van.');
  if(engines[p.engine].kind==='gpu'&&!/^\d{1,2}(,\d{1,2})*$/.test(p.devices))throw Error('Miner eszközazonosítók: például 0,1.');
  const walletId=p.walletId??'',walletTemplate=p.walletTemplate??'%WAL%';if(typeof walletId!=='string'||!/^[-\w]{0,64}$/.test(walletId)||!str(walletTemplate,512)||/%[A-Z_]+%/.test(walletTemplate.replaceAll('%WAL%','').replaceAll('%WORKER_NAME%','')))throw Error('Hibás wallet-hivatkozás vagy sablon.');
