@@ -30,7 +30,9 @@
     "install-lan.bat",
     "install-lan.ps1",
     "web-login.bat",
-    "web-login.ps1"
+    "web-login.ps1",
+    "image/user-data",
+    "image/meta-data"
   ],
   "trees": {
     "worker": [
@@ -77,6 +79,12 @@
       ".scss",
       ".css",
       ".txt"
+    ],
+    "image": [
+      ".sh",
+      ".ps1",
+      ".md",
+      ".service"
     ]
   }
 }

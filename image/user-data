@@ -1,0 +1,19 @@
+#cloud-config
+autoinstall:
+  version: 1
+  interactive-sections: [network, storage, identity]
+  locale: en_US.UTF-8
+  keyboard: {layout: hu}
+  timezone: Europe/Budapest
+  refresh-installer: {update: false}
+  ssh: {install-server: true, allow-pw: true}
+  drivers: {install: true}
+  packages: [curl, ca-certificates, python3, ubuntu-drivers-common, apache2, apache2-utils]
+  updates: security
+  late-commands:
+    - mkdir -p /target/opt/localforge-installer
+    - cp -a /cdrom/localforge/. /target/opt/localforge-installer/
+    - chmod 755 /target/opt/localforge-installer/firstboot.sh
+    - cp /cdrom/localforge/localforge-firstboot.service /target/etc/systemd/system/
+    - curtin in-target -- systemctl enable localforge-firstboot.service
+  shutdown: reboot

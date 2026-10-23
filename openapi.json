@@ -1827,6 +1827,52 @@
           }
         ]
       }
+    },
+    "/api/v1/app-update": {
+      "get": {
+        "summary": "Telepített verzió és utolsó frissítésellenőrzés",
+        "responses": {
+          "200": {
+            "description": "Verzió- és folyamatállapot"
+          }
+        }
+      },
+      "post": {
+        "summary": "Stabil kiadás ellenőrzése vagy kézi frissítés indítása (control scope)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "check",
+                      "apply"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ellenőrzés eredménye"
+          },
+          "202": {
+            "description": "Frissítés elindítva"
+          },
+          "400": {
+            "description": "Nincs elérhető kiadás vagy hibás művelet"
+          }
+        }
+      }
     }
   },
   "components": {

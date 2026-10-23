@@ -4,8 +4,8 @@ import {randomBytes,randomUUID,createHash,timingSafeEqual} from 'node:crypto';
 
 const digest=value=>createHash('sha256').update(value).digest('hex');
 export const apiScopes=['read','control','power'];
-export const readRoutes=['node','capabilities','status','profiles','wallets','watchdog','logs','history'];
-export const writeRoutes=['profiles','delete','start','stop','wallets','wallets/delete','import-profile','watchdog','watchdog/rearm','oc','system-power'];
+export const readRoutes=['node','capabilities','status','profiles','wallets','watchdog','logs','history','app-update'];
+export const writeRoutes=['profiles','delete','start','stop','wallets','wallets/delete','import-profile','watchdog','watchdog/rearm','oc','system-power','app-update'];
 export class AgentApi {
  constructor(dataDir){this.dataDir=dataDir;this.file=path.join(dataDir,'api-keys.json');this.auditQueue=Promise.resolve();}
  async init(){

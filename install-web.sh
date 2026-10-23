@@ -61,6 +61,7 @@ WantedBy=multi-user.target
 SERVICE
 bash scripts/install-updater.sh
 systemctl daemon-reload
+bash scripts/install-app-updater.sh
 systemctl enable --now localforge.service
 echo 'Webes kezelo elindult. Hivatalos miner binarisok letoltese...'
 # Csak letoltes/kicsomagolas; a binarisokat a telepito nem futtatja.

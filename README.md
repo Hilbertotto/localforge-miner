@@ -302,3 +302,9 @@ A miner-fejléc a referencia szerinti tömör, háromsoros blokkot használ: pro
 A Szerkesztés gomb futó profilnál is megjelenik. Azonos név mellett a „Mentés és alkalmazás” menti a paramétereket, és csak az érintett minert indítja újra. Új név megadásakor a felület „Új profil mentése · nem indul” módra vált; a „Mentés új néven” gomb is ezt használja. A másolat külön azonosítót kap, leállítva marad, és az autostart-listába sem kerül be. Az eredeti profil és annak folyamata ilyenkor nem változik.
 
 Új profilnál már létező nevet megadva a felület felülírási megerősítést kér; a szerver nem enged véletlenül két azonos nevű profilt. Leállított profil mentése nem indítja el azt. Hibás paramétert vagy eszközütközést leállítás előtt elutasít. Ha az új konfiguráció nem indítható, visszaállítja és megpróbálja futtatni a régit; a hővédelmet visszaállításkor sem kerüli meg. Az API ugyanazt a mentési folyamatot használja.
+
+## Programfrissítés és saját telepítő
+
+A miner oldalsávjának **Programfrissítés** gombja megmutatja a telepített és a legújabb stabil GitHub-verziót. A frissítés kézzel indítható; program- és beállításmentés után a szolgáltatás újraindul, a futó profilok visszaindulnak. A driver változatlan marad. Kiadások: https://github.com/Hilbertotto/localforge-miner/releases/latest.
+
+Az internetet igénylő Ubuntu telepítő-ISO készítési forrásai és használata: [image/README.md](image/README.md). Nem tartalmaznak személyes jelszót, walletet vagy munkáskulcsot.

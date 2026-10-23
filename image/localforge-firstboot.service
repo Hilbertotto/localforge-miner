@@ -1,0 +1,15 @@
+[Unit]
+Description=LocalForge first boot installation (Internet required)
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=!/var/lib/localforge-installer/complete
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/localforge-installer/firstboot.sh
+TimeoutStartSec=90min
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

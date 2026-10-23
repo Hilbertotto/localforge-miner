@@ -1,3 +1,4 @@
+import {AppUpdates} from './src/app-updates.mjs';
 import {validatePresets,migratePresets,updatePreset,resolvePresetOc,gpuPresetIdentity,presetKey} from './src/vbios-oc.mjs';
 import {saveProfile} from './src/profile-save.mjs';
 import {CentralConnection} from './src/central-connection.mjs';
@@ -34,6 +35,7 @@ export async function createApp({dataDir=path.join(root,'data'),manager=new Mana
  const centralConnection=new CentralConnection(dataDir,agentApi);
  const runState=new RunState(dataDir);await runState.load();const restorePending=new Set(runState.ids),restoreErrors=new Map();let shuttingDown=false,powerRequest=null;
  const watchdog=new ThermalWatchdog({dataDir,manager,readTemperature,reboot,getProfiles:()=>profiles.map(p=>resolveWallet(p,wallets))});await watchdog.load();if(watchdogTimer)watchdog.start();
+ const appUpdates=new AppUpdates({dataDir,current:agentVersion,startUpdate:()=>run('sudo',['-n','/usr/local/sbin/localforge-update'],{timeout:15000})});
  const history=new TelemetryHistory({dataDir,source:async()=>{const [system,hashrates]=await Promise.all([telemetry(),manager.hashrates()]);return {system,hashrates,profiles,jobs:manager.status()};}});await history.load();
  let ocSettings=[];try{ocSettings=JSON.parse(await readFile(path.join(dataDir,'oc-settings.json'),'utf8')).map(validateOc);}catch(e){if(e.code!=='ENOENT')throw e;}let ocPresets=[];try{ocPresets=validatePresets(JSON.parse(await readFile(path.join(dataDir,'oc-vbios.json'),'utf8')));}catch(e){if(e.code!=='ENOENT')throw e;}let ocApplied=ocSettings.length===0&&ocPresets.length===0,ocSeeded=false;
  async function saveOc(next){const file=path.join(dataDir,'oc-settings.json');await writeFile(file+'.tmp',JSON.stringify(next,null,2),{mode:0o600});await rename(file+'.tmp',file);ocSettings=next;}
@@ -78,6 +80,7 @@ export async function createApp({dataDir=path.join(root,'data'),manager=new Mana
     if(req.method==='POST')res.once('finish',()=>agentApi.audit({keyId:principal.id,method:req.method,endpoint,status:res.statusCode}));
     route='/api/'+endpoint;
    }
+   if(req.method==='GET'&&route==='/api/app-update')return send(200,await appUpdates.status());
    if(req.method==='GET'&&route==='/api/history'){await history.latest();return send(200,history.query(historyRange));}
    if(req.method==='GET'&&route==='/api/session')return send(200,{token,engines});
    if(!versioned&&req.method==='GET'&&route==='/api/central-connection')return send(200,await centralConnection.status());
@@ -95,6 +98,7 @@ export async function createApp({dataDir=path.join(root,'data'),manager=new Mana
     if(busy||shuttingDown||powerRequest)return send(409,{error:'Egy művelet már folyamatban van, vagy a szolgáltatás leáll.'});busy=true;
     try{
      let body='';for await(const chunk of req){body+=chunk;if(body.length>32768)return send(413,{error:'Túl nagy kérés.'});}const data=JSON.parse(body||'{}');
+     if(route==='/api/app-update'){if(data.action==='check')return send(200,await appUpdates.check());if(data.action==='apply')return send(202,await appUpdates.apply());throw Error('Ismeretlen frissítési művelet.');}
      if(!versioned&&route==='/api/central-connection'){await centralConnection.configure(data);return send(200,{ok:true,...await centralConnection.status()});}
      if(!versioned&&route==='/api/central-restore'){await centralConnection.restore(data);return send(200,{ok:true,...await centralConnection.status()});}
      if(route==='/api/system-power'){

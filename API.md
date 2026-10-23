@@ -147,3 +147,8 @@ A mintavétel 5 másodpercenként a szolgáltatásban fut, böngésző nélkül 
 
 
 A profilmentési válasz `id`, `mode`, `applied`, `running`, `message` mezőket tartalmaz. Futó profil módosítása előtt az eszközütközést és a hővédelmet ellenőrzi; a leállítás után ismét ellenőrzi a hőfokot. A másolathoz a `password` kihagyható, ilyenkor a forrásprofil értékét használja. A webfelület névváltoztatáskor automatikusan másolatmentést választ; az API explicit update módban helyben át is nevezhet profilt. Sikertelen visszaindításkor a hibaválasz jelzi, hogy a régi konfiguráció visszaállítása és futtatása sikerült-e. A futó profil alkalmazása nem a miner folyamatának megszakítás nélküli átkonfigurálása: az érintett miner röviden újraindul.
+
+## Stabil programfrissítés
+
+`GET /api/v1/app-update` (`read`): telepített verzió, utolsó GitHub-ellenőrzés és frissítési folyamat állapota.
+`POST /api/v1/app-update` (`control`), `{ "action": "check" }` vagy `{ "action": "apply" }`: a legújabb stabil kiadás ellenőrzése, illetve kézzel engedélyezett telepítése. Prerelease és verzió-visszalépés nincs. A telepítés SHA256-ellenőrzést, kicsomagolási útvonalellenőrzést és root-only program-/beállításmentést végez; kizárólag a rögzített projekt hivatalos Release-assetjeit fogadja el.
