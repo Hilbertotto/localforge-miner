@@ -19,7 +19,9 @@ bash install-web.sh
 # Downloads must all finish successfully before marking the installation complete.
 python3 scripts/download-miners.py
 apt-get install -y apache2 apache2-utils
-install -d -m 700 /etc/localforge
+# Apache must traverse this directory to read its group-readable htpasswd file.
+# The plain-text credentials below remain root-only (0600).
+install -d -o root -g www-data -m 750 /etc/localforge
 if [[ ! -s /etc/localforge/web-credentials ]]; then
  password=$(python3 -c 'import secrets; print(secrets.token_urlsafe(18))')
  printf '%s\n' "$password" | htpasswd -ci /etc/localforge/web.htpasswd miner

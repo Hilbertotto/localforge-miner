@@ -20,6 +20,7 @@ install -o root -g root -m 644 server.mjs package.json /opt/localforge/
 sed -i 's/\r$//' scripts/localforge-oc.py
 install -o root -g root -m 755 scripts/localforge-oc.py /usr/local/sbin/localforge-oc
 bash scripts/install-app-updater.sh
+bash scripts/repair-web-access.sh
 systemctl start localforge.service
 trap - EXIT
 systemctl is-active localforge.service

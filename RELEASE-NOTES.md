@@ -1,15 +1,13 @@
-# LocalForge v0.4.0
+# LocalForge v0.4.1
 
-Központi farmkezelés és frissíthető miner Ubuntu 26.04 amd64 rendszerekhez.
+Stabil hibajavító kiadás Ubuntu minerekhez és a helyi központhoz.
 
-- Felhasználói regisztráció, e-mail-megerősítés, adminisztráció, farmok és kulccsal csatlakozó munkások.
-- Farmwallet- és flight sheet-tár, titkosított munkásmentések és újratelepítés utáni visszaállítás.
-- Gentelella minerfelület, közös CPU/GPU hashrate-grafikon 1/3/6/12/24 órás időtávval.
-- NVIDIA OC-modál, órajelzárak, core/memóriaoffset, ventilátor és power limit; külön mért és beállított órajel.
-- VBIOS-alapú OC-sablonok hardver- és VRAM-ellenőrzéssel.
-- Kézzel indítható stabil programfrissítés GitHub Release-ből, SHA256-ellenőrzéssel, program- és beállításmentéssel, program-visszaállítással hibás telepítésnél.
-- Ubuntu telepítő-ISO készítési források. A telepítő kézzel kéri a lemezt és felhasználót, az első SSD-s induláskor a legújabb stabil LocalForge-kiadást tölti le. Internet szükséges.
+- Wallet és profil hozzáadása helyi IP-címes HTTP-elérésnél is működik: biztonságos véletlen azonosító készül akkor is, ha a böngészőben a crypto.randomUUID nem érhető el.
+- A telepített SRBMiner 3.7.9 mind a 66 algoritmusa szerepel a katalógusban. A 34 GPU-algoritmus választható hardverjelöléssel; a 32 CPU-only algoritmus külön, letiltott csoportban látszik, mert az SRBMiner-adapter jelenleg GPU-módú.
+- Új, kompakt terminálstílusú minerfelület, monospace betűk, cián/magenta grafikonok, alsó F1–F6 navigáció és egységes modálok.
+- Az Ubuntu telepítő Apache-jelszófájljának könyvtárjogosultsága javítva. A már telepített gépek frissítése is javítja az ismert /etc/localforge/web.htpasswd elérést, miközben a szöveges webes jelszó root-only marad.
+- Windows ISO-kiíró: javított UInt32 hozzáférési jelző, kötetazonosítós megnyitás, írásvédelem-ellenőrzés és meghajtóbetű nélküli USB SSD támogatás.
 
-A programfrissítés a miner szolgáltatást rövid időre újraindítja, a futó profilok visszaindulnak. Drivert nem frissít. A tároló és a stabil kiadáscsomagok nyilvánosak; a helyi jelszavak, walletek és munkáskulcsok nincsenek bennük.
+A programfrissítés mentést készít, röviden újraindítja a miner szolgáltatást, és visszaindítja a korábban futó profilokat. Drivert nem frissít. A hashrate-kijelzés korábban megfigyelt SRBMiner-kimeneti pufferelése ebben a kiadásban még nincs javítva; a mérési frissesség ellenőrzése megmarad.
 
-Az új telepítés nem indít bányászatot profil nélkül. A teljes ISO fizikai SSD/GPU kombináción végzett telepítési tesztje külön szükséges; a bootellenőrzés önmagában nem ilyen teszt. AMD OC és telemetria továbbra sincs integrálva.
+A telepítő ISO az első SSD-s induláskor a legújabb stabil GitHub Release-csomagot tölti le. A régi ISO-ba beépített elsőindítási Apache-beállítás továbbra is kézi javítást igényelhet az első webes belépéshez; a programfrissítés a már meglévő jelszófájl jogosultságait helyreállítja.

@@ -12,4 +12,10 @@ class ImagePayload(unittest.TestCase):
   text=(Path(__file__).resolve().parents[1]/'image/user-data').read_text(encoding='utf-8-sig')
   self.assertIn('interactive-sections: [network, storage, identity]',text)
   self.assertNotIn('password:',text);self.assertNotIn('match:',text)
+ def test_apache_can_traverse_auth_directory_without_reading_plain_credentials(self):
+  text=(Path(__file__).resolve().parents[1]/'image/firstboot.sh').read_text(encoding='utf-8-sig')
+  self.assertIn('install -d -o root -g www-data -m 750 /etc/localforge',text)
+  self.assertIn('chmod 600 /etc/localforge/web-credentials',text)
+  self.assertIn('chown root:www-data /etc/localforge/web.htpasswd',text)
+  self.assertIn('chmod 640 /etc/localforge/web.htpasswd',text)
 if __name__=='__main__':unittest.main()
