@@ -5,7 +5,7 @@ param(
  [Parameter(Mandatory=$true)][ValidateRange(0,1024)][int]$DiskNumber,
  [Parameter(Mandatory=$true)][ValidateNotNullOrEmpty()][string]$ExpectedSerial,
  [Parameter(Mandatory=$true)][long]$ExpectedSize,
- [Parameter(Mandatory=$true)][ValidatePattern('^[A-Z]$')][string]$ExpectedDriveLetter,
+ [ValidatePattern('^[A-Z]$')][string]$ExpectedDriveLetter,
  [Parameter(Mandatory=$true)][string]$ExpectedName
 )
 $ErrorActionPreference='Stop'
@@ -21,7 +21,8 @@ try {
  $taskDisk=Get-Disk -Number $DiskNumber
  if($taskDisk.BusType -ne 'USB' -or $taskDisk.IsBoot -or $taskDisk.IsSystem -or $taskDisk.Size -ne $ExpectedSize -or $taskDisk.SerialNumber.Trim() -ne $ExpectedSerial -or $taskDisk.FriendlyName -ne $ExpectedName){throw 'USB identity changed. No writes allowed.'}
  $taskPartitions=@(Get-Partition -DiskNumber $DiskNumber)
- if(-not ($taskPartitions | Where-Object {$_.DriveLetter -eq $ExpectedDriveLetter})){throw 'Drive letter is no longer on the verified USB disk.'}
+ if($taskDisk.IsReadOnly){throw 'Verified USB disk is read-only.'}
+ if($ExpectedDriveLetter -and -not ($taskPartitions | Where-Object {$_.DriveLetter -eq $ExpectedDriveLetter})){throw 'Drive letter is no longer on the verified USB disk.'}
  Save-Progress 'verified' 0 'Verified USB identity. Beginning destructive write.'
  Add-Type -TypeDefinition @'
 using System;
@@ -35,15 +36,18 @@ public static class LocalForgeRawUsb {
 }
 '@
  foreach($taskPart in $taskPartitions){
-  if(-not $taskPart.DriveLetter){continue}
-  $taskVolume=[LocalForgeRawUsb]::CreateFile(('\\.\'+$taskPart.DriveLetter+':'),0xC0000000,3,[IntPtr]::Zero,3,0,[IntPtr]::Zero)
+  $taskVolumePath=@($taskPart.AccessPaths | Where-Object {$_ -like '\\?\Volume{*'}) | Select-Object -First 1
+  if(-not $taskVolumePath){
+   if($taskPart.DriveLetter -match '^[A-Z]$'){$taskVolumePath='\\.\'+$taskPart.DriveLetter+':'}else{continue}
+  }
+  $taskVolume=[LocalForgeRawUsb]::CreateFile($taskVolumePath.TrimEnd('\'),[uint32]3221225472,3,[IntPtr]::Zero,3,0,[IntPtr]::Zero)
   if($taskVolume.IsInvalid){throw 'Cannot open USB volume.'}
   $taskHandles+=$taskVolume
   [uint32]$taskReturned=0
   if(-not [LocalForgeRawUsb]::DeviceIoControl($taskVolume,0x90018,[IntPtr]::Zero,0,[IntPtr]::Zero,0,[ref]$taskReturned,[IntPtr]::Zero)){throw 'Cannot lock USB volume. Close Explorer windows using F:.'}
   if(-not [LocalForgeRawUsb]::DeviceIoControl($taskVolume,0x90020,[IntPtr]::Zero,0,[IntPtr]::Zero,0,[ref]$taskReturned,[IntPtr]::Zero)){throw 'Cannot dismount USB volume.'}
  }
- $taskHandle=[LocalForgeRawUsb]::CreateFile(('\\.\PhysicalDrive'+$DiskNumber),0xC0000000,3,[IntPtr]::Zero,3,0,[IntPtr]::Zero)
+ $taskHandle=[LocalForgeRawUsb]::CreateFile(('\\.\PhysicalDrive'+$DiskNumber),[uint32]3221225472,3,[IntPtr]::Zero,3,0,[IntPtr]::Zero)
  if($taskHandle.IsInvalid){throw 'Cannot open verified USB physical disk.'}
  $taskRaw=[IO.FileStream]::new($taskHandle,[IO.FileAccess]::ReadWrite,4MB,$false)
  $taskInput=[IO.File]::OpenRead($taskImage.FullName)

@@ -1,3 +1,4 @@
+import {srbAlgorithms} from './srb-algorithms.mjs';
 import os from 'node:os';
 import {spawn} from 'node:child_process';
 import {randomBytes} from 'node:crypto';
@@ -5,7 +6,7 @@ import {readCpu} from './hashrate.mjs';
 import {GpuLogStats} from './gpu-hashrate.mjs';
 import {mkdir} from 'node:fs/promises';
 import path from 'node:path';
-export const engines={xmrig:{label:'XMRig · CPU',kind:'cpu',algorithms:['rx/0','ghostrider','cn-heavy/xhv']},lolminer:{label:'lolMiner · GPU',kind:'gpu',algorithms:['ETCHASH','AUTOLYKOS2','BEAM-III']},srbminer:{label:'SRBMiner · GPU',kind:'gpu',algorithms:['pearlhash','autolykos2','kawpow','etchash']}};
+export const engines={xmrig:{label:'XMRig · CPU',kind:'cpu',algorithms:['rx/0','ghostrider','cn-heavy/xhv']},lolminer:{label:'lolMiner · GPU',kind:'gpu',algorithms:['ETCHASH','AUTOLYKOS2','BEAM-III']},srbminer:{label:'SRBMiner · GPU',kind:'gpu',algorithms:['pearlhash',...srbAlgorithms.filter(a=>a.id!=='pearlhash'&&(a.amd||a.nvidia||a.intel)).map(a=>a.id)],algorithmDetails:srbAlgorithms}};
 export function validateProfile(p,{maxThreads=os.cpus().length}={}){
  const str=(x,max)=>typeof x==='string'&&x.length<=max&&!/[\x00-\x1f]/.test(x);
  if(!p||!str(p.id,64)||!/^[-\w]{1,64}$/.test(p.id)||!str(p.name,80)||!p.name.trim()||!Object.hasOwn(engines,p.engine))throw Error('Hibás profilnév vagy bányászprogram.');
