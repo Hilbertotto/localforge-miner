@@ -1,0 +1,13 @@
+import {cp,mkdir,readFile,writeFile} from 'node:fs/promises';
+import {engines} from '../src/miners.mjs';
+const project=new URL('./',import.meta.url),root=new URL('../',project);
+const at=(p)=>new URL(p,project),source=(p)=>new URL(p,root);
+await mkdir(at('resources/localforge/miner/'),{recursive:true});
+await cp(source('central/public/'),at('public/'),{recursive:true});
+await cp(source('central/worker-ui-bridge.js'),at('resources/localforge/bridge.js'));
+await cp(source('public/'),at('resources/localforge/miner/'),{recursive:true});
+await writeFile(at('resources/localforge/engines.json'),JSON.stringify(engines));
+const downloads=JSON.parse(await readFile(source('catalogs/github/miner-downloads.json')));
+const details=JSON.parse(await readFile(source('public/miner-catalog.json'))).data;
+const miners=downloads.miners.map(m=>({...m,enabled:true,algorithms:[...new Set((details.find(x=>x.id===m.id)?.algos||[]).map(a=>a.id))]}));
+await writeFile(at('resources/localforge/miner-software.json'),JSON.stringify({schema:1,revision:'bundled',updatedAt:downloads.generatedAt,miners}));
